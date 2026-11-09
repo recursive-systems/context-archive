@@ -14,6 +14,12 @@ Chunk kinds: `user`, `assistant`, `thinking`, `tool_call`, `tool_output`, `tool_
 tool-call summaries, every error, summaries, subagent results, head+tail digests of
 `bash`/tool-gateway/job output. Everything, including file reads, is keyword-searchable.
 
+Machine-written extension messages (event or audit logs written into sessions) can be kept
+keyword-only so they don't fill the vector index: list their Pi `customType`s in
+`CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES` (comma-separated), restart, then run
+`ContextArchive.Release.apply_keyword_only_types()` once (`mix run --no-start -e` on the VM,
+`bin/context_archive eval` in Docker) to take chunks of those types off the embedding queue.
+
 ## Operating it
 
 ```sh

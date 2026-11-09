@@ -6,7 +6,9 @@ defmodule ContextArchive.Corpus.Chunker do
       error, subagent results, compaction/branch summaries, extension messages, and a
       head+tail digest of `bash` / tool-gateway / job-log output
     * keyword-only: everything else (file reads, listings, full long outputs, edit and
-      write payloads), so exact strings stay findable without paying for vectors
+      write payloads), so exact strings stay findable without paying for vectors; also
+      extension messages whose `customType` is configured keyword-only
+      (`CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES`): machine-written records such as event logs
 
   Embedded text is split into parts of at most #{900} characters with #{100} characters
   of overlap, which keeps each part within the embedding model's 256-token window.
@@ -37,10 +39,21 @@ defmodule ContextArchive.Corpus.Chunker do
       when type in ["compaction", "branch_summary"] and is_binary(summary),
       do: embedded(:summary, summary, %{"entry_type" => type})
 
-  def chunks(%{"type" => "custom_message", "content" => content} = e),
-    do:
-      embedded(:extension_message, content_text(content), %{"custom_type" => e["customType"]})
-      |> Enum.take(3)
+  def chunks(%{"type" => "custom_message", "content" => content} = e) do
+    text = content_text(content)
+    meta = %{"custom_type" => e["customType"]}
+
+    cond do
+      e["customType"] not in keyword_only_types() ->
+        embedded(:extension_message, text, meta) |> Enum.take(3)
+
+      String.trim(text) == "" ->
+        []
+
+      true ->
+        [keyword(:extension_message, 0, text, meta)]
+    end
+  end
 
   def chunks(_entry), do: []
 
@@ -167,6 +180,10 @@ defmodule ContextArchive.Corpus.Chunker do
       do: [keyword(kind, @max_embedded_parts, text, meta)],
       else: []
   end
+
+  @doc "Extension message types stored keyword-only (`CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES`)."
+  def keyword_only_types,
+    do: Application.get_env(:context_archive, :keyword_only_custom_types, [])
 
   defp keyword(kind, part, text, meta),
     do: %{

@@ -4,6 +4,7 @@ defmodule ContextArchive.Release do
 
       bin/context_archive eval "ContextArchive.Release.migrate()"
       bin/context_archive rpc 'ContextArchive.Release.mint(name: "laptop-ingest", kind: "ingest", source: "laptop", out: "/data/tokens/laptop.token")'
+      bin/context_archive eval "ContextArchive.Release.apply_keyword_only_types()"
 
   `mix context_archive.mint_token` calls `mint_token/1` too, so both write tokens the
   same way: plaintext only to a new 0600 file, never printed; the database keeps a hash.
@@ -16,6 +17,43 @@ defmodule ContextArchive.Release do
 
     for repo <- Application.fetch_env!(@app, :ecto_repos) do
       {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :up, all: true))
+    end
+
+    :ok
+  end
+
+  @doc """
+  Applies `CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES` to chunks already ingested: extension message
+  chunks of those types that are still waiting for a vector become keyword-only and leave
+  the embedding queue. Vectors already stored are kept. Prints how many chunks changed.
+  """
+  def apply_keyword_only_types do
+    load_app()
+    types = ContextArchive.Corpus.Chunker.keyword_only_types()
+
+    for repo <- Application.fetch_env!(@app, :ecto_repos) do
+      {:ok, changed, _} =
+        Ecto.Migrator.with_repo(repo, fn repo ->
+          %{num_rows: n} =
+            repo.query!(
+              """
+              WITH unqueued AS (
+                DELETE FROM embed_queue q USING chunks c
+                WHERE c.id = q.chunk_id
+                  AND c.kind = 'extension_message'
+                  AND c.metadata->>'custom_type' = ANY($1::text[])
+                RETURNING c.id
+              )
+              UPDATE chunks SET "embed?" = false WHERE id IN (SELECT id FROM unqueued)
+              """,
+              [types],
+              timeout: :infinity
+            )
+
+          n
+        end)
+
+      IO.puts("keyword-only types #{inspect(types)}: #{changed} waiting chunks unqueued")
     end
 
     :ok

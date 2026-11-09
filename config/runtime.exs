@@ -11,6 +11,19 @@ if config_env() != :test do
   config :context_archive, ContextArchive.Ingest.RawStore, root: raw_root
 end
 
+# Extension message types (Pi `customType`) stored keyword-only instead of embedded:
+# machine-written records, such as event or audit logs, that would add vectors but no
+# meaning. Comma-separated, e.g. CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES=my-event-log,my-audit.
+# After adding a type, `ContextArchive.Release.apply_keyword_only_types()` takes chunks of
+# that type that are still waiting for a vector off the embedding queue.
+if config_env() != :test do
+  config :context_archive,
+         :keyword_only_custom_types,
+         System.get_env("CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES", "")
+         |> String.split(",", trim: true)
+         |> Enum.map(&String.trim/1)
+end
+
 # Judging for find, from the environment (docs/judging.md):
 #   CONTEXT_ARCHIVE_JUDGE              openai (any OpenAI-compatible API) or typesafe
 #   CONTEXT_ARCHIVE_JUDGE_URL          the API base, e.g. https://api.openai.com/v1
