@@ -1,0 +1,740 @@
+{
+  "components": {
+    "responses": {
+      "errors": {
+        "content": {
+          "application/vnd.api+json": {
+            "schema": {
+              "$ref": "#/components/schemas/errors"
+            }
+          }
+        },
+        "description": "General Error"
+      }
+    },
+    "schemas": {
+      "error": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "An application-specific error code, expressed as a string value.",
+            "type": "string"
+          },
+          "detail": {
+            "description": "A human-readable explanation specific to this occurrence of the problem.",
+            "type": "string"
+          },
+          "id": {
+            "description": "A unique identifier for this particular occurrence of the problem.",
+            "type": "string"
+          },
+          "links": {
+            "$ref": "#/components/schemas/links"
+          },
+          "source": {
+            "properties": {
+              "parameter": {
+                "description": "A string indicating which query parameter caused the error.",
+                "type": "string"
+              },
+              "pointer": {
+                "description": "A JSON Pointer [RFC6901] to the associated entity in the request document [e.g. \"/data\" for a primary data object, or \"/data/attributes/title\" for a specific attribute].",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "status": {
+            "description": "The HTTP status code applicable to this problem, expressed as a string value.",
+            "type": "string"
+          },
+          "title": {
+            "description": "A short, human-readable summary of the problem. It SHOULD NOT change from occurrence to occurrence of the problem, except for purposes of localization.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "errors": {
+        "items": {
+          "$ref": "#/components/schemas/error"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "link": {
+        "description": "A link MUST be represented as either: a string containing the link's URL or a link object.",
+        "type": "string"
+      },
+      "links": {
+        "additionalProperties": {
+          "$ref": "#/components/schemas/link"
+        },
+        "type": "object"
+      },
+      "search": {
+        "additionalProperties": false,
+        "description": "A \"Resource object\" representing a search",
+        "properties": {
+          "attributes": {
+            "additionalProperties": false,
+            "description": "An attributes object for a search",
+            "properties": {},
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationships": {
+            "additionalProperties": false,
+            "description": "A relationships object for a search",
+            "properties": {},
+            "type": "object"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ],
+        "type": "object"
+      },
+      "search-filter": {
+        "additionalProperties": false,
+        "description": "Filters the query to results matching the given filter object",
+        "example": "",
+        "properties": {
+          "and": {
+            "items": {
+              "$ref": "#/components/schemas/search-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "not": {
+            "$ref": "#/components/schemas/search-filter"
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/search-filter"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "type": "deepObject"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Context Archive read token"
+      }
+    }
+  },
+  "info": {
+    "title": "Context Archive",
+    "version": "1.0.0",
+    "description": "Archive of agent sessions across machines. Find fuses several search phrasings into paginated passages, judged relevant by a judge model when one is configured. Only masked agents-scope text is sent to the judge; failed or excluded judgments remain explicitly unjudged. Search returns ranked candidates with provenance. Text is masked for secrets."
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/chunks/{chunk_id}/context": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "The records before and after a search hit, in document order.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chunk_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "style": "form"
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "chunkContext",
+        "summary": "Records before and after a search hit"
+      }
+    },
+    "/api/v1/documents/{document}": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Read a document (Pi session) in file order, one page of records at a time.",
+        "parameters": [
+          {
+            "description": "Document UUID or Pi session id.",
+            "in": "path",
+            "name": "document",
+            "required": true,
+            "schema": {
+              "description": "Document UUID or Pi session id.",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Continue after this byte offset (from next_after_offset).",
+            "in": "query",
+            "name": "after_offset",
+            "required": false,
+            "schema": {
+              "description": "Continue after this byte offset (from next_after_offset).",
+              "type": "integer"
+            },
+            "style": "form"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "readDocument",
+        "summary": "Read a document (Pi session) in file order"
+      }
+    },
+    "/api/v1/find": {
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Search with a question and up to four more phrasings, fuse the candidates and return\nexcerpts around the question's words. TypeSafe Jev judges which passages help answer\nit; `results` is ordered by relevance score and `nearest` shows misses when none pass.\nOnly masked agents-scope text is sent to Jev. Excluded or failed judgments remain in\n`unjudged` with null scores; evaluate those yourself. If judging is disabled, all\ncandidates are explicitly unjudged. Page with `offset` = `next_offset` and read around\na hit with chunk context. These are historical passages, not verified current facts.\n",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "after": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only content at or after this time (ISO 8601)."
+                      },
+                      "before": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only content before this time (ISO 8601)."
+                      },
+                      "candidates": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Fused search candidates to consider (5-50, default 30)."
+                      },
+                      "excerpt_chars": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Characters of each passage to return (200-2000, default 900)."
+                      },
+                      "exclude_session_ids": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Leave out these sessions and their forks and subagent runs, e.g. your own.",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Leave out these sessions and their forks and subagent runs, e.g. your own."
+                      },
+                      "kinds": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ...).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ...)."
+                      },
+                      "limit": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Most passages per page (1-15, default 6)."
+                      },
+                      "machines": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these machines (e.g. mini).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these machines (e.g. mini)."
+                      },
+                      "mode": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "hybrid",
+                              "keyword"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "hybrid (default) or keyword."
+                      },
+                      "offset": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Skip this many passages (next_offset from the last page)."
+                      },
+                      "projects": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these project directories (cwd).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these project directories (cwd)."
+                      },
+                      "queries": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Up to 4 more search phrasings: a paraphrase, and the exact words, names, paths or error text the passage would likely contain.",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Up to 4 more search phrasings: a paraphrase, and the exact words, names, paths or error text the passage would likely contain."
+                      },
+                      "question": {
+                        "description": "What you want to know, as a full question.",
+                        "type": "string"
+                      },
+                      "threshold": {
+                        "anyOf": [
+                          {
+                            "format": "float",
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Lowest judged score that counts as answering (default 0.5)."
+                      }
+                    },
+                    "required": [
+                      "question"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Request body for the /v1/find operation on search resource",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "find",
+        "summary": "Passages judged to answer a question, fused across search phrasings"
+      }
+    },
+    "/api/v1/search": {
+      "post": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Find passages across archived context. Hybrid mode fuses keyword (full-text) and\nsemantic (embedding) rankings; keyword mode is best for exact strings (commands,\npaths, error codes). Near-duplicate passages are collapsed into one (its `duplicates`\ncounts the rest) and at most 3 come from one session unless you set `per_session`.\nResults are candidates, not judgments: rerank them yourself.\n",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/vnd.api+json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "after": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only content at or after this time (ISO 8601)."
+                      },
+                      "before": {
+                        "anyOf": [
+                          {},
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only content before this time (ISO 8601)."
+                      },
+                      "dedupe": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Collapse near-duplicate passages into the best-ranked one (default true)."
+                      },
+                      "errors_only": {
+                        "anyOf": [
+                          {
+                            "type": "boolean"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only tool and model errors."
+                      },
+                      "exclude_session_ids": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Leave out these sessions and their subagent runs, e.g. your own (PI_SESSION_ID), so you don't find what you just said.",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Leave out these sessions and their subagent runs, e.g. your own (PI_SESSION_ID), so you don't find what you just said."
+                      },
+                      "kinds": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message.",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message."
+                      },
+                      "limit": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Number of results (1-100)."
+                      },
+                      "machines": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these machines (e.g. mini, growth).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these machines (e.g. mini, growth)."
+                      },
+                      "mode": {
+                        "anyOf": [
+                          {
+                            "enum": [
+                              "hybrid",
+                              "keyword",
+                              "vector"
+                            ],
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "hybrid (default), keyword or vector."
+                      },
+                      "per_session": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Most passages from one session (default 3; no limit when session_ids is given)."
+                      },
+                      "projects": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these project directories (cwd).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these project directories (cwd)."
+                      },
+                      "query": {
+                        "description": "What to look for.",
+                        "type": "string"
+                      },
+                      "session_ids": {
+                        "anyOf": [
+                          {
+                            "items": {
+                              "description": "Only these sessions (Pi session ids).",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "Only these sessions (Pi session ids)."
+                      }
+                    },
+                    "required": [
+                      "query"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "data"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Request body for the /v1/search operation on search resource",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "search",
+        "summary": "Search archived context (hybrid, keyword or vector)"
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "Freshness per machine and source, parse and embedding backlog, corpus size.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "status",
+        "summary": "Freshness, backlog and embedding coverage"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "https://context-archive.<tailnet>.ts.net"
+    }
+  ],
+  "tags": [
+    {
+      "name": "archive",
+      "description": "Search and read archived context"
+    }
+  ]
+}

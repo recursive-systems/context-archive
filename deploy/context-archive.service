@@ -1,0 +1,26 @@
+[Unit]
+Description=Context Archive Phoenix server
+
+[Service]
+Type=simple
+WorkingDirectory=/home/debian/context-archive
+Environment=PATH=/opt/context-archive/elixir-1.20.4-otp-29/bin:/opt/context-archive/otp-29.1.2/bin:/home/debian/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=MIX_ENV=dev
+Environment=CONTEXT_ARCHIVE_LOCAL_DB=1
+Environment=CONTEXT_ARCHIVE_SECRET_KEY_BASE_FILE=/home/debian/.config/context-archive/secret_key_base
+Environment=CONTEXT_ARCHIVE_RAW_ROOT=/srv/context-archive/raw
+# Written from the actual joined Tailscale DNS name, not an assumed hostname.
+EnvironmentFile=-/home/debian/.config/context-archive/service.env
+# Deployment settings kept apart from service.env (which serve-tailnet.sh rewrites), e.g.
+# the judge: CONTEXT_ARCHIVE_JUDGE, CONTEXT_ARCHIVE_JUDGE_URL (docs/judging.md).
+EnvironmentFile=-/home/debian/.config/context-archive/settings.env
+ExecStart=/opt/context-archive/elixir-1.20.4-otp-29/bin/mix phx.server
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+# Embedding backfill must not starve the rest of the host.
+Nice=5
+
+[Install]
+WantedBy=default.target

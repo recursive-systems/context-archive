@@ -1,0 +1,36 @@
+# Context Archive with PostgreSQL + pgvector. Copy .env.example to .env and fill it in,
+# then: docker compose up -d --build
+# The app listens on 127.0.0.1:4000 only; put a TLS-terminating reverse proxy or
+# Tailscale Serve in front of it to reach it from other machines.
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: archive
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: context_archive
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "archive", "-d", "context_archive"]
+      interval: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: ecto://archive:${POSTGRES_PASSWORD}@db/context_archive
+    ports:
+      - "127.0.0.1:${PORT:-4000}:4000"
+    volumes:
+      - data:/data
+
+volumes:
+  db:
+  data:

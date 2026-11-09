@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Install (or update) the Context Archive shipper on this machine as a per-user job
+# that runs every 2 minutes: a LaunchAgent on macOS, a systemd user timer on Linux.
+#
+#   shipper/install            # uses ~/.config/context-archive/shipper.json (must exist)
+#   shipper/install --uninstall
+#
+# The config and the ingest token file are per machine and created separately (the token
+# is minted on the VM with `mix context_archive.mint_token --kind ingest --source <machine>`
+# and copied as a 0600 file; it is never printed). This script prints no secrets.
+set -euo pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+config="$HOME/.config/context-archive/shipper.json"
+dest="$HOME/.local/share/context-archive"
+label="systems.recursive.context-archive-shipper"
+
+uninstall() {
+  case "$(uname -s)" in
+    Darwin) launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true; rm -f "$HOME/Library/LaunchAgents/$label.plist" ;;
+    Linux) systemctl --user disable --now context-archive-shipper.timer 2>/dev/null || true
+           rm -f "$HOME/.config/systemd/user/context-archive-shipper."{service,timer}; systemctl --user daemon-reload ;;
+  esac
+  echo "uninstalled (config, token and state are left in place)"
+}
+
+[[ ${1:-} == --uninstall ]] && { uninstall; exit 0; }
+
+[[ -f $config ]] || { echo "FATAL: $config missing (url, source, token_file, roots)" >&2; exit 1; }
+mode() { if [[ $(uname -s) == Darwin ]]; then stat -f %Lp "$1"; else stat -c %a "$1"; fi; }
+[[ $(mode "$config") == 600 ]] || { echo "FATAL: $config must be mode 0600" >&2; exit 1; }
+python3 - "$config" <<'PY'
+import json, os, sys
+c = json.load(open(sys.argv[1]))
+for key in ("url", "source", "token_file", "roots"):
+    assert key in c, f"config missing {key}"
+token = os.path.expanduser(c["token_file"])
+assert os.path.isfile(token), "token file missing"
+assert oct(os.stat(token).st_mode & 0o777) == "0o600", "token file must be mode 0600"
+PY
+
+install -d -m 0700 "$dest"
+install -m 0755 "$here/context_archive_shipper.py" "$dest/context_archive_shipper.py"
+python3 "$dest/context_archive_shipper.py" --dry-run >/dev/null
+
+case "$(uname -s)" in
+  Darwin)
+    plist="$HOME/Library/LaunchAgents/$label.plist"
+    log="$HOME/Library/Logs/context-archive-shipper.log"
+    install -d "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+    cat > "$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$label</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>$dest/context_archive_shipper.py</string>
+    <string>--config</string><string>$config</string>
+  </array>
+  <key>StartInterval</key><integer>120</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>LowPriorityIO</key><true/>
+  <key>StandardOutPath</key><string>$log</string>
+  <key>StandardErrorPath</key><string>$log</string>
+</dict>
+</plist>
+PLIST
+    launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$plist"
+    echo "installed LaunchAgent $label (every 120 s); log: $log"
+    ;;
+  Linux)
+    unit="$HOME/.config/systemd/user"
+    install -d "$unit"
+    cat > "$unit/context-archive-shipper.service" <<UNIT
+[Unit]
+Description=Context Archive shipper (push new session bytes)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 $dest/context_archive_shipper.py --config $config
+Nice=10
+IOSchedulingClass=idle
+UNIT
+    cat > "$unit/context-archive-shipper.timer" <<UNIT
+[Unit]
+Description=Run the Context Archive shipper every 2 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+    systemctl --user daemon-reload
+    systemctl --user enable --now context-archive-shipper.timer
+    echo "installed systemd user timer context-archive-shipper.timer (every 2 min); logs: journalctl --user -u context-archive-shipper"
+    ;;
+  *) echo "FATAL: unsupported OS" >&2; exit 1 ;;
+esac

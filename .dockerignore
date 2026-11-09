@@ -1,0 +1,11 @@
+_build/
+deps/
+.git/
+.elixir_ls/
+cover/
+tmp/
+priv/static/assets/
+assets/node_modules/
+.env
+.env.*
+**/__pycache__/
