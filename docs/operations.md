@@ -120,6 +120,8 @@ service logs at info level, so archived content stays out of the journal.
   that ship to it or read from it, on 443.
 - Database: PostgreSQL 18 from PGDG with **pgvector** (created in `template1`, so every
   app database has it); loopback only; peer authentication over `/var/run/postgresql`.
+  Memory settings (1 GB `shared_buffers` for a 4 GiB VM) are in
+  `/etc/postgresql/18/main/conf.d/context-archive.conf`, written by `bootstrap-vm.sh`.
 - DB role: `debian`, CREATEDB but neither SUPERUSER nor CREATEROLE; no DB password.
 - Toolchain: Elixir 1.20.4 / Erlang/OTP 29.1.2 under `/opt/context-archive`, checksum-verified
   Hex ARM64 builds.
