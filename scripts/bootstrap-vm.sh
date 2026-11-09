@@ -19,7 +19,15 @@ curl -fsSL --retry 3 https://pkgs.tailscale.com/stable/debian/trixie.tailscale-k
 apt-get update -qq
 # Stable major pinned; latest security/bugfix minor. pgvector from PGDG for the same major.
 apt-get install -y -qq postgresql-18 postgresql-18-pgvector tailscale
-printf "listen_addresses = '127.0.0.1'\n" > /etc/postgresql/18/main/conf.d/context-archive.conf
+# Memory for a 4 GB VM shared with the app (~0.7 GB): the default 128 MB cache leaves the
+# chunk and embedding tables on disk. Scale these with the VM's RAM.
+cat > /etc/postgresql/18/main/conf.d/context-archive.conf <<'CONF'
+listen_addresses = '127.0.0.1'
+shared_buffers = 1GB
+effective_cache_size = 2560MB
+maintenance_work_mem = 256MB
+work_mem = 16MB
+CONF
 systemctl enable --now postgresql tailscaled
 systemctl restart postgresql@18-main
 # App user is not a superuser. Peer authentication works only as Unix user debian.
