@@ -5,6 +5,11 @@ defmodule ContextArchive.Corpus.EmbedWorker do
   Runs every minute (Oban cron, queue `embed`, concurrency 1) and works for up to
   ~50 s per run, newest chunks first so recent sessions become searchable soonest.
   Within a pick, texts are grouped by length so each batch pads as little as possible.
+
+  The backlog lives in `embed_queue`: a trigger adds every new `embed?` chunk and `store/2`
+  removes chunks once their vectors are saved, so neither picking nor counting scans the
+  whole archive. Changing `Embeddings.model_name/0` needs a migration that refills the
+  queue with the chunks that lack a vector for the new model.
   """
   use Oban.Worker,
     queue: :embed,
@@ -55,43 +60,21 @@ defmodule ContextArchive.Corpus.EmbedWorker do
 
   @doc "Chunks still needing a vector for the current model, newest first."
   def pending(limit) do
-    model = Embeddings.model_name()
-
-    from(c in "chunks",
-      as: :chunk,
-      where: field(c, :embed?) == true,
-      where:
-        not exists(
-          from(e in "embeddings",
-            where: e.chunk_id == parent_as(:chunk).id and e.model == ^model,
-            select: 1
-          )
-        ),
-      order_by: [desc_nulls_last: c.occurred_at],
+    from(q in "embed_queue",
+      join: c in "chunks",
+      on: c.id == q.chunk_id,
+      order_by: [desc_nulls_last: q.occurred_at],
       limit: ^limit,
       select: %{id: type(c.id, Ecto.UUID), text: c.text}
     )
     |> Repo.all()
   end
 
-  @doc "Count of chunks still waiting for a vector (for /status)."
-  def pending_count do
-    model = Embeddings.model_name()
-
-    Repo.one(
-      from(c in "chunks",
-        as: :chunk,
-        where: field(c, :embed?) == true,
-        where:
-          not exists(
-            from(e in "embeddings",
-              where: e.chunk_id == parent_as(:chunk).id and e.model == ^model,
-              select: 1
-            )
-          ),
-        select: count()
-      )
-    )
+  @doc "Count of chunks still waiting for a vector, optionally only in `scopes` (for /status)."
+  def pending_count(scopes \\ nil) do
+    query = from(q in "embed_queue", select: count())
+    query = if scopes, do: where(query, [q], q.scope in ^scopes), else: query
+    Repo.one(query)
   end
 
   defp store(batch, vectors) do
@@ -109,6 +92,12 @@ defmodule ContextArchive.Corpus.EmbedWorker do
         stop_on_error?: true,
         return_records?: false
       )
+
+    ids = Enum.map(batch, & &1.id)
+
+    Repo.delete_all(
+      from(q in "embed_queue", where: q.chunk_id in type(^ids, {:array, Ecto.UUID}))
+    )
 
     :ok
   end

@@ -99,17 +99,18 @@ defmodule ContextArchive.Corpus.Reader do
         [scopes]
       )
 
-    [[documents, chunks, embeddable, embedded]] =
+    [[documents, chunks, embeddable]] =
       Repo.query!(
         """
         SELECT (SELECT count(*) FROM documents WHERE scope = ANY($1::text[])),
                (SELECT count(*) FROM chunks WHERE scope = ANY($1::text[])),
-               (SELECT count(*) FROM chunks WHERE scope = ANY($1::text[]) AND "embed?"),
-               (SELECT count(*) FROM embeddings e JOIN chunks c ON c.id = e.chunk_id
-                 WHERE c.scope = ANY($1::text[]) AND e.model = $2)
+               (SELECT count(*) FROM chunks WHERE scope = ANY($1::text[]) AND "embed?")
         """,
-        [scopes, Embeddings.model_name()]
+        [scopes]
       ).rows
+
+    # Every embeddable chunk is either embedded or still in the queue.
+    embedded = embeddable - EmbedWorker.pending_count(scopes)
 
     {:ok,
      %{
