@@ -88,7 +88,8 @@ The archive holds everything your agents have seen, including credentials that s
 up in tool output. So: keep it on a private network, every request needs a token, the
 shipper masks known credential shapes before upload, API responses mask anything
 secret-looking, and read tokens carry scopes (`agents` for agent sessions, `personal`
-for owner-only sources). SQL and archived content are never logged.
+for owner-only sources). SQL and archived content are never logged. To report a
+vulnerability, see [SECURITY.md](SECURITY.md).
 
 ## More
 

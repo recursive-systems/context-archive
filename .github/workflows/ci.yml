@@ -65,3 +65,30 @@ jobs:
           key: test-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
       - run: mix deps.get
       - run: mix test
+
+  # The Docker Compose quick start from the README: build, start, wait for health and mint
+  # a token. Informational, like e2e; it is not meant as a required check.
+  docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write a throwaway .env
+        run: |
+          cp .env.example .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env
+          sed -i "s|^SECRET_KEY_BASE=.*|SECRET_KEY_BASE=$(openssl rand -base64 48 | tr -d '/+=\n')|" .env
+      - run: docker compose up -d --build
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:4000/health && exit 0
+            sleep 5
+          done
+          docker compose logs app
+          exit 1
+      - name: Mint a token as the README does
+        run: >-
+          docker compose exec -T app bin/context_archive rpc
+          'ContextArchive.Release.mint(name: "smoke", kind: "read", scopes: "agents", out: "/data/tokens/smoke.token")'
+      - if: always()
+        run: docker compose down -v

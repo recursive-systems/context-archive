@@ -1,0 +1,30 @@
+# Weekly dependency update pull requests. Security updates arrive as soon as an
+# advisory is published, independent of this schedule.
+version: 2
+updates:
+  - package-ecosystem: mix
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      mix:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images. The Elixir/OTP tags must match the toolchain in ci.yml; bump them together.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: monthly
