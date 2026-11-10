@@ -35,6 +35,15 @@ docker compose exec app bin/context_archive rpc \
   'ContextArchive.Release.mint(name: "agents-reader", kind: "read", scopes: "agents", out: "/data/tokens/reader.token")'
 ```
 
+`/health` reports the commit an instance runs. An image has no checkout to read it from,
+so pass it on the command line when building (not in `.env`, where it would go stale and
+be reported for every later build). Without it the revision is `null`.
+
+```sh
+CONTEXT_ARCHIVE_REVISION="$(git rev-parse HEAD)$(test -z "$(git status --porcelain)" || echo -dirty)" \
+  docker compose up -d --build
+```
+
 The archive listens on `127.0.0.1:4000`. To reach it from other machines, put a
 TLS-terminating reverse proxy or Tailscale Serve in front, and keep it off the public
 internet. Copy each token out of the `data` volume to the machine that uses it.
@@ -68,7 +77,7 @@ scopes; admin tokens see every scope and may ask for unmasked text.
 | POST | `/api/v1/find` | a question plus up to 4 phrasings, fused and paged; judged passages in `results`, the rest in `unjudged` |
 | GET | `/api/v1/documents/{document}` | a whole session, in file order, paged |
 | GET | `/api/v1/chunks/{chunk_id}/context` | the records before and after a hit |
-| GET | `/api/v1/status` | freshness per machine and source, parse and embedding backlog |
+| GET | `/api/v1/status` | freshness per machine and source, parse and embedding backlog, the running revision |
 | GET | `/api/open_api` | the OpenAPI document, for agent tool gateways |
 
 Every result carries its scores, masked text, the session and record it came from, and

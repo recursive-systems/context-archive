@@ -176,6 +176,27 @@ curl --fail http://127.0.0.1:4000/health
 
 Never run `mix ecto.reset` against the persistent dev DB.
 
+### Deploying to the VM
+
+The service runs straight from the checkout, so the checkout is the deployment. Stop
+the service before moving the checkout: dev mode reloads changed code into a running
+instance, which would then run something other than what it reports. Shippers retry.
+
+```sh
+cd ~/context-archive
+git fetch origin
+systemctl --user stop context-archive
+git merge --ff-only origin/main
+mix deps.get && mix ash.migrate          # only when mix.lock or migrations changed
+systemctl --user start context-archive
+curl --fail http://127.0.0.1:4000/health # answers once the app has compiled and started
+```
+
+`/health` answers `{"status":"ok","revision":"<commit>","started_at":"<UTC time>"}`: the
+commit the instance was started from (`-dirty` appended if the working tree differed from
+it, `null` if it could not be read) and when it started. `/api/v1/status` carries the same
+under `build`. A deploy is done when `revision` is the commit you meant to ship.
+
 ## Validation and periodic checks
 
 `mix precommit` runs compilation and formatting checks only, never tests. Measure their

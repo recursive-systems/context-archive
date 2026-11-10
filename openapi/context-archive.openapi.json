@@ -696,7 +696,7 @@
       "get": {
         "callbacks": {},
         "deprecated": false,
-        "description": "Freshness per machine and source, parse and embedding backlog, corpus size.",
+        "description": "Freshness per machine and source, parse and embedding backlog, corpus size, and the running revision.",
         "parameters": [],
         "responses": {
           "200": {

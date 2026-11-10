@@ -246,7 +246,7 @@ defmodule ContextArchive.Corpus.Search do
     end
 
     action :status, :map do
-      description "Freshness per machine and source, parse and embedding backlog, corpus size."
+      description "Freshness per machine and source, parse and embedding backlog, corpus size, and the running revision."
       run fn _input, context -> Reader.status(scopes(context.actor)) end
     end
   end

@@ -128,6 +128,7 @@ defmodule ContextArchive.Corpus.Reader do
          end),
        documents: documents,
        chunks: chunks,
+       build: ContextArchive.Build.info(),
        embedding: %{
          model: Embeddings.model_name(),
          embeddable_chunks: embeddable,

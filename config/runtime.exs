@@ -11,6 +11,13 @@ if config_env() != :test do
   config :context_archive, ContextArchive.Ingest.RawStore, root: raw_root
 end
 
+# The commit this instance runs, for images and other installs without a checkout to read
+# it from (ContextArchive.Build). Unset or empty, a checkout's HEAD is used.
+case System.get_env("CONTEXT_ARCHIVE_REVISION", "") |> String.trim() do
+  "" -> :ok
+  revision -> config :context_archive, :revision, revision
+end
+
 # Extension message types (Pi `customType`) stored keyword-only instead of embedded:
 # machine-written records, such as event or audit logs, that would add vectors but no
 # meaning. Comma-separated, e.g. CONTEXT_ARCHIVE_KEYWORD_ONLY_TYPES=my-event-log,my-audit.

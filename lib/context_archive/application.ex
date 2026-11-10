@@ -7,6 +7,8 @@ defmodule ContextArchive.Application do
 
   @impl true
   def start(_type, _args) do
+    ContextArchive.Build.record()
+
     # Embedding servings (Bumblebee/EXLA); empty when disabled, e.g. in tests.
     children =
       [

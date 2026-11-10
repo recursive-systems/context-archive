@@ -37,6 +37,10 @@ RUN useradd --create-home --uid 1000 archive \
 COPY --from=build --chown=archive:archive /app/_build/prod/rel/context_archive ./
 USER archive
 
+# The commit the image was built from, reported by /health; the build context has no .git.
+ARG CONTEXT_ARCHIVE_REVISION=""
+ENV CONTEXT_ARCHIVE_REVISION=${CONTEXT_ARCHIVE_REVISION}
+
 # Raw archive and the embedding model cache live on the /data volume.
 ENV PHX_SERVER=true \
     CONTEXT_ARCHIVE_RAW_ROOT=/data/raw \

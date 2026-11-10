@@ -18,7 +18,10 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        CONTEXT_ARCHIVE_REVISION: ${CONTEXT_ARCHIVE_REVISION:-}
     restart: unless-stopped
     depends_on:
       db:
