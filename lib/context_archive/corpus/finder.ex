@@ -141,7 +141,8 @@ defmodule ContextArchive.Corpus.Finder do
   end
 
   defp present(r, terms, chars) do
-    %{
+    if(r[:precedent], do: %{precedent: r.precedent}, else: %{})
+    |> Map.merge(%{
       chunk_id: r.chunk_id,
       score: r.score && Float.round(r.score, 3),
       kind: r.kind,
@@ -153,7 +154,7 @@ defmodule ContextArchive.Corpus.Finder do
       document: Map.take(r.document, [:session_id, :title, :parent_session_id]),
       excerpt: excerpt(r.text, terms, chars),
       chars: String.length(r.text)
-    }
+    })
   end
 
   @doc false

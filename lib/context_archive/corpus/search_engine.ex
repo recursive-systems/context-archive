@@ -16,6 +16,7 @@ defmodule ContextArchive.Corpus.SearchEngine do
   """
   require Logger
   alias ContextArchive.{Embeddings, Masking, Repo}
+  alias ContextArchive.Corpus.Precedents
 
   @keyword_timeout_ms 8_000
 
@@ -71,6 +72,7 @@ defmodule ContextArchive.Corpus.SearchEngine do
         end
       end)
       |> select(limit, per_session, Keyword.get(opts, :dedupe, true))
+      |> with_precedents(opts[:scopes])
       |> Enum.map(&present(&1, opts[:unmasked?]))
 
     {:ok,
@@ -351,6 +353,7 @@ defmodule ContextArchive.Corpus.SearchEngine do
          machine: machine,
          project: project,
          scope: scope,
+         metadata: cmeta,
          tool_name: tool || cmeta["tool_name"],
          document: %{
            id: uuid(did),
@@ -362,6 +365,27 @@ defmodule ContextArchive.Corpus.SearchEngine do
          record: %{id: uuid(rid), entry_id: eid, entry_type: etype, role: role, is_error: err},
          source_ref: %{stream_id: stream && uuid(stream), byte_offset: off, byte_length: len}
        }}
+    end)
+  end
+
+  # A precedent passage says whether it is still the current one for its topic.
+  defp with_precedents(results, scopes) do
+    ids = for %{kind: "precedent", chunk_id: id} <- results, do: id
+    status = Precedents.status(scopes, ids)
+
+    Enum.map(results, fn
+      %{kind: "precedent", chunk_id: id, metadata: %{"precedent" => p}} = r ->
+        s = Map.get(status, id, %{current: true, current_id: id})
+
+        Map.put(r, :precedent, %{
+          id: id,
+          topic: p["topic"],
+          current: s.current,
+          current_id: s.current_id
+        })
+
+      r ->
+        r
     end)
   end
 
@@ -387,7 +411,8 @@ defmodule ContextArchive.Corpus.SearchEngine do
       :tool_name,
       :document,
       :record,
-      :source_ref
+      :source_ref,
+      :precedent
     ])
   end
 

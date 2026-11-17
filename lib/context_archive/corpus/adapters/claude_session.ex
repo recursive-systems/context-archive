@@ -15,6 +15,7 @@ defmodule ContextArchive.Corpus.Adapters.ClaudeSession do
   """
 
   alias ContextArchive.Corpus.Adapters.PiSession
+  alias ContextArchive.Corpus.Precedents
 
   @record_kind "claude-entry"
   @document_kind "claude-session"
@@ -149,6 +150,28 @@ defmodule ContextArchive.Corpus.Adapters.ClaudeSession do
   end
 
   def to_pi(_entry), do: nil
+
+  @doc """
+  Text of a user line the human typed, or nil. Left out: tool results, meta lines (skill
+  bodies, reminders, peer messages), compaction summaries, sidechains, lines whose `origin`
+  is not human (task notifications) or whose `promptSource` is not typed, and texts
+  `Precedents.human_typed/1` rejects (Herdr messages typed into the terminal by agents).
+  """
+  def human_text(%{"type" => "user", "message" => %{"content" => c}} = e) do
+    typed? =
+      e["isMeta"] != true and e["isCompactSummary"] != true and e["isSidechain"] != true and
+        is_nil(e["toolUseResult"]) and e["userType"] in [nil, "external"] and
+        origin_kind(e["origin"]) in [nil, "human"] and e["promptSource"] in [nil, "typed"] and
+        not (is_list(c) and Enum.any?(c, &(is_map(&1) and &1["type"] == "tool_result")))
+
+    if typed?, do: Precedents.human_typed(text(c))
+  end
+
+  def human_text(_entry), do: nil
+
+  defp origin_kind(%{"kind" => kind}), do: kind
+  defp origin_kind(nil), do: nil
+  defp origin_kind(_), do: :unknown
 
   defp message(m, e), do: %{"type" => "message", "id" => e["uuid"], "message" => m}
 

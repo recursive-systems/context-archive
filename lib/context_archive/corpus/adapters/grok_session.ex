@@ -93,6 +93,9 @@ defmodule ContextArchive.Corpus.Adapters.GrokSession do
 
   def title(_entry), do: nil
 
+  @doc "Precedents are recorded only from Pi, Claude Code and Codex sessions."
+  def human_text(_entry), do: nil
+
   @doc "The Pi-shaped entry the Chunker reads, or nil."
   def to_pi(entry) do
     u = update(entry)

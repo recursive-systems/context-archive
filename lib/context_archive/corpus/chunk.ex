@@ -19,7 +19,8 @@ defmodule ContextArchive.Corpus.Chunk do
     :tool_error,
     :summary,
     :subagent_result,
-    :extension_message
+    :extension_message,
+    :precedent
   ]
 
   def kinds, do: @kinds

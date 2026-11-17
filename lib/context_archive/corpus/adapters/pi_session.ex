@@ -16,8 +16,11 @@ defmodule ContextArchive.Corpus.Adapters.PiSession do
   Adapter interface (used by `Corpus.Ingestor`, shared with the Claude Code and Codex
   adapters): `session_path?/1`, `document_info/2` (from the decoded first lines and the
   path), `header?/1` (a line that is the document, not a record), `record_info/1`,
-  `to_pi/1` (the entry the `Chunker` reads, or nil), `title/1`, `record_kind/0`.
+  `to_pi/1` (the entry the `Chunker` reads, or nil), `human_text/1` (what the human typed in a
+  user message, or nil), `title/1`, `record_kind/0`.
   """
+
+  alias ContextArchive.Corpus.{Chunker, Precedents}
 
   @record_kind "pi-entry"
   @document_kind "pi-session"
@@ -37,6 +40,15 @@ defmodule ContextArchive.Corpus.Adapters.PiSession do
   @doc "Whether an entry is the session header (the document, not a record)."
   def header?(%{"type" => "session"}), do: true
   def header?(_), do: false
+
+  @doc """
+  Text of a user message the human typed (`Precedents.human_typed/1`), or nil. Subagent
+  sessions have none (`Precedents` skips them by the document).
+  """
+  def human_text(%{"type" => "message", "message" => %{"role" => "user", "content" => c}}),
+    do: c |> Chunker.content_text() |> Precedents.human_typed()
+
+  def human_text(_entry), do: nil
 
   @doc "Pi entries are what the Chunker reads already."
   def to_pi(entry), do: entry

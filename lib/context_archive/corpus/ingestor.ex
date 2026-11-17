@@ -15,7 +15,7 @@ defmodule ContextArchive.Corpus.Ingestor do
   require Logger
 
   alias ContextArchive.{Corpus, Ids, Ingest}
-  alias ContextArchive.Corpus.{Chunk, Chunker, Document, DocumentRecord, Record}
+  alias ContextArchive.Corpus.{Chunk, Chunker, Document, DocumentRecord, Precedents, Record}
   alias ContextArchive.Ingest.RawStore
 
   @slice 4 * 1024 * 1024
@@ -198,9 +198,16 @@ defmodule ContextArchive.Corpus.Ingestor do
       end)
       |> List.flatten()
 
+    # Precedent blocks are verified against the session's stored messages, so after the rest.
+    precedent_rows =
+      Enum.zip_with(parsed, records, fn {entry, _line, pos}, record ->
+        {entry, record, stream.id, pos}
+      end)
+
     with :ok <- bulk_upsert(Record, records),
          :ok <- bulk_upsert(DocumentRecord, memberships),
-         :ok <- bulk_upsert(Chunk, chunks) do
+         :ok <- bulk_upsert(Chunk, chunks),
+         :ok <- bulk_upsert(Chunk, Precedents.chunks(adapter, doc, precedent_rows)) do
       finish_document(adapter, doc, parsed, records)
     end
   end

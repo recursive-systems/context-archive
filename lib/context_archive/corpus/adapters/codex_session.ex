@@ -12,6 +12,7 @@ defmodule ContextArchive.Corpus.Adapters.CodexSession do
   """
 
   alias ContextArchive.Corpus.Adapters.PiSession
+  alias ContextArchive.Corpus.Precedents
 
   @record_kind "codex-entry"
   @document_kind "codex-session"
@@ -97,6 +98,20 @@ defmodule ContextArchive.Corpus.Adapters.CodexSession do
       do: %{"type" => "compaction", "summary" => m}
 
   def to_pi(_entry), do: nil
+
+  @doc """
+  Text of a user message the human typed, or nil: injected context and texts
+  `Precedents.human_typed/1` rejects are left out; spawned subagents have none.
+  """
+  def human_text(%{
+        "type" => "response_item",
+        "payload" => %{"type" => "message", "role" => "user", "content" => c}
+      }) do
+    text = text(c)
+    if injected?(text), do: nil, else: Precedents.human_typed(text)
+  end
+
+  def human_text(_entry), do: nil
 
   defp item(%{"type" => "message", "role" => "user", "content" => c}, e) do
     text = text(c)

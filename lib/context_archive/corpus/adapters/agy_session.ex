@@ -84,6 +84,9 @@ defmodule ContextArchive.Corpus.Adapters.AgySession do
   def title(%{"type" => "title", "title" => t}) when is_binary(t) and t != "", do: t
   def title(_), do: nil
 
+  @doc "Precedents are recorded only from Pi, Claude Code and Codex sessions."
+  def human_text(_entry), do: nil
+
   @doc "The Pi-shaped entry the Chunker reads, or nil."
   def to_pi(%{"type" => "step", "idx" => idx, "step" => s}) when is_map(s) do
     id = to_string(idx)

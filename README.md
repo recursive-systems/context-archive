@@ -78,10 +78,46 @@ scopes; admin tokens see every scope and may ask for unmasked text.
 | GET | `/api/v1/documents/{document}` | a whole session, in file order, paged |
 | GET | `/api/v1/chunks/{chunk_id}/context` | the records before and after a hit |
 | GET | `/api/v1/status` | freshness per machine and source, parse and embedding backlog, the running revision |
+| GET | `/api/v1/precedents` | the owner's decisions: the current one per topic with its history, by `topic` or words (`query`) |
 | GET | `/api/open_api` | the OpenAPI document, for agent tool gateways |
 
 Every result carries its scores, masked text, the session and record it came from, and
 the byte range in the raw archive. Full parameters are in the OpenAPI document.
+
+### Precedents
+
+A precedent is a decision the owner states. Agents record one by putting a block like this
+in their own reply, quoting the decision exactly as he typed it (paste this into agent
+instructions):
+
+````text
+To record a decision Bradley states, put this block in your reply. Copy his words exactly
+into "decision"; "question" is what was decided (your question, or his words); "topic" is
+a short name, the same as before for the same subject. To change an earlier one, give its
+id (from archive.precedents) in "supersedes".
+
+```precedent
+{"topic": "deploy days", "question": "May we deploy on Fridays?",
+ "decision": "<his exact words>", "reason": "<optional>", "supersedes": "<optional id>"}
+```
+````
+
+The archive keeps a block only when its decision, with whitespace normalized, is in a
+message the human typed in the same session, at or before the block. Herdr messages
+(`<hc from=…>`), loop prompts (`[loop …]`), tool results, harness notifications, meta and
+injected messages, compaction summaries, pasted text, and every message of a subagent
+session don't count. A decision under four words ("yes") must also follow its question:
+the question is in that message or in the agent's turn just before it. Anything else
+stays ordinary assistant text.
+
+Verified precedents are passages of kind `precedent` in `search` and `find` (`kinds:
+["precedent"]` for precedents only), each with a `precedent` object saying whether it is
+the current one. Precedents never change; a change of mind is a new one. Precedents on the
+same topic, or joined by `supersedes`, form one line whose newest is current; a
+`supersedes` naming an unknown or later precedent is ignored and listed as unresolved.
+`precedents` returns one line per topic with its history, each linked to the session and
+entry it was recorded in and the message that verified it. Works for Pi, Claude Code and
+Codex sessions.
 
 ### Judging (optional)
 

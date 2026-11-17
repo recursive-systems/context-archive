@@ -10,7 +10,9 @@ requirement; any private network or TLS-terminating reverse proxy works.
 ## Chunks
 
 Chunk kinds: `user`, `assistant`, `thinking`, `tool_call`, `tool_output`, `tool_error`,
-`summary`, `subagent_result`, `extension_message`. Embedded: conversation, thinking,
+`summary`, `subagent_result`, `extension_message`, `precedent` (a verified precedent block,
+README "Precedents"; verified when the recording entry is parsed, against the stored
+messages of its session, so bytes parsed before this existed hold none). Embedded: conversation, thinking,
 tool-call summaries, every error, summaries, subagent results, head+tail digests of
 `bash`/tool-gateway/job output. Everything, including file reads, is keyword-searchable.
 

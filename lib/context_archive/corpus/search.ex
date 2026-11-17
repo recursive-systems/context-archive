@@ -22,6 +22,7 @@ defmodule ContextArchive.Corpus.Search do
       route :get, "/documents/:document", :document
       route :get, "/chunks/:chunk_id/context", :context
       route :get, "/status", :status
+      route :get, "/precedents", :precedents
     end
   end
 
@@ -32,7 +33,9 @@ defmodule ContextArchive.Corpus.Search do
       semantic (embedding) rankings; keyword mode is best for exact strings (commands,
       paths, error codes). Near-duplicate passages are collapsed into one (its `duplicates`
       counts the rest) and at most 3 come from one session unless you set `per_session`.
-      Results are candidates, not judgments: rerank them yourself.
+      Results are candidates, not judgments: rerank them yourself. Precedents (decisions the
+      owner stated, verified against what he typed) come back with kind `precedent` and a
+      `precedent` object saying whether each is the current one for its topic.
       """
 
       argument :query, :string, allow_nil?: false, description: "What to look for."
@@ -54,7 +57,7 @@ defmodule ContextArchive.Corpus.Search do
 
       argument :kinds, {:array, :string},
         description:
-          "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message."
+          "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message, precedent (decisions the owner stated; [\"precedent\"] for precedents only)."
 
       argument :session_ids, {:array, :string},
         description: "Only these sessions (Pi session ids)."
@@ -118,7 +121,9 @@ defmodule ContextArchive.Corpus.Search do
       failed judgments remain in
       `unjudged` with null scores; evaluate those yourself. If judging is disabled, all
       candidates are explicitly unjudged. Page with `offset` = `next_offset` and read around
-      a hit with chunk context. These are historical passages, not verified current facts.
+      a hit with chunk context. These are historical passages, not verified current facts,
+      except passages of kind `precedent`: decisions the owner stated, with `precedent.current`
+      telling whether each still stands.
       """
 
       argument :question, :string,
@@ -165,7 +170,7 @@ defmodule ContextArchive.Corpus.Search do
 
       argument :kinds, {:array, :string},
         description:
-          "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ...)."
+          "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ..., precedent; [\"precedent\"] for the owner's recorded decisions only)."
 
       argument :exclude_session_ids, {:array, :string},
         description: "Leave out these sessions and their forks and subagent runs, e.g. your own."
@@ -242,6 +247,41 @@ defmodule ContextArchive.Corpus.Search do
           unmasked?: unmasked?(args, context.actor)
         )
         |> not_found()
+      end
+    end
+
+    action :precedents, :map do
+      description """
+      The owner's precedents: decisions he stated, recorded by agents and verified against
+      what he typed. One line per topic, newest first, with the current decision and the
+      ones it replaced (`history`, each with `superseded_by`); each links back to its session
+      and entry. Filter by `topic` or by words (`query`). To record one, write a fenced
+      `precedent` block in your reply (see the README).
+      """
+
+      argument :query, :string, description: "Only topics with a precedent matching these words."
+      argument :topic, :string, description: "Only this topic (case-insensitive)."
+
+      argument :limit, :integer,
+        default: 20,
+        constraints: [min: 1, max: 100],
+        description: "Most topics (1-100, default 20)."
+
+      argument :unmasked, :boolean, default: false, description: "Admin tokens only."
+
+      run fn input, context ->
+        args = input.arguments
+
+        {:ok,
+         %{
+           precedents:
+             ContextArchive.Corpus.Precedents.lines(scopes(context.actor),
+               query: args[:query],
+               topic: args[:topic],
+               limit: args.limit,
+               unmasked?: unmasked?(args, context.actor)
+             )
+         }}
       end
     end
 

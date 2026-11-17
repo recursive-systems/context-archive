@@ -42,6 +42,7 @@ defmodule ContextArchive.Corpus do
       define :read_document, action: :document
       define :chunk_context, action: :context
       define :archive_status, action: :status
+      define :precedents, action: :precedents
     end
   end
 end

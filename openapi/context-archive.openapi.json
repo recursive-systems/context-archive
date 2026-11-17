@@ -138,7 +138,7 @@
   "info": {
     "title": "Context Archive",
     "version": "1.0.0",
-    "description": "Archive of agent sessions across machines. Find fuses several search phrasings into paginated passages, judged relevant by a judge model when one is configured. Only masked agents-scope text is sent to the judge; failed or excluded judgments remain explicitly unjudged. Search returns ranked candidates with provenance. Text is masked for secrets."
+    "description": "Archive of agent sessions across machines. Find fuses several search phrasings into paginated passages, judged relevant by a judge model when one is configured. Only masked agents-scope text is sent to the judge; failed or excluded judgments remain explicitly unjudged. Search returns ranked candidates with provenance. Precedents are decisions the owner stated, verified against what he typed: they appear in search and find as kind `precedent`, and `precedents` returns the current one per topic with its history. Text is masked for secrets."
   },
   "openapi": "3.0.0",
   "paths": {
@@ -263,7 +263,7 @@
       "post": {
         "callbacks": {},
         "deprecated": false,
-        "description": "Search with a question and up to four more phrasings, fuse the candidates and return\nexcerpts around the question's words. TypeSafe Jev judges which passages help answer\nit; `results` is ordered by relevance score and `nearest` shows misses when none pass.\nOnly masked agents-scope text is sent to Jev. Excluded or failed judgments remain in\n`unjudged` with null scores; evaluate those yourself. If judging is disabled, all\ncandidates are explicitly unjudged. Page with `offset` = `next_offset` and read around\na hit with chunk context. These are historical passages, not verified current facts.\n",
+        "description": "Search with a question and up to four more phrasings, fuse the candidates and return\nexcerpts around the question's words. A judge model, when configured, decides which\npassages help answer it; `results` is ordered by relevance score and `nearest` shows\nmisses when none pass. Only masked agents-scope text is sent to the judge. Excluded or\nfailed judgments remain in\n`unjudged` with null scores; evaluate those yourself. If judging is disabled, all\ncandidates are explicitly unjudged. Page with `offset` = `next_offset` and read around\na hit with chunk context. These are historical passages, not verified current facts,\nexcept passages of kind `precedent`: decisions the owner stated, with `precedent.current`\ntelling whether each still stands.\n",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -333,7 +333,7 @@
                         "anyOf": [
                           {
                             "items": {
-                              "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ...).",
+                              "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ..., precedent; [\"precedent\"] for the owner's recorded decisions only).",
                               "type": "string"
                             },
                             "type": "array"
@@ -342,7 +342,7 @@
                             "type": "null"
                           }
                         ],
-                        "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ...)."
+                        "description": "Only these chunk kinds (user, assistant, thinking, tool_call, tool_output, ..., precedent; [\"precedent\"] for the owner's recorded decisions only)."
                       },
                       "limit": {
                         "anyOf": [
@@ -481,11 +481,73 @@
         "summary": "Passages judged to answer a question, fused across search phrasings"
       }
     },
+    "/api/v1/precedents": {
+      "get": {
+        "callbacks": {},
+        "deprecated": false,
+        "description": "The owner's precedents: decisions he stated, recorded by agents and verified against\nwhat he typed. One line per topic, newest first, with the current decision and the\nones it replaced (`history`, each with `superseded_by`); each links back to its session\nand entry. Filter by `topic` or by words (`query`). To record one, write a fenced\n`precedent` block in your reply (see the README).\n",
+        "parameters": [
+          {
+            "description": "Most topics (1-100, default 20).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "description": "Most topics (1-100, default 20).",
+              "type": "integer"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Only topics with a precedent matching these words.",
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "description": "Only topics with a precedent matching these words.",
+              "type": "string"
+            },
+            "style": "form"
+          },
+          {
+            "description": "Only this topic (case-insensitive).",
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "description": "Only this topic (case-insensitive).",
+              "type": "string"
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.api+json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "$ref": "#/components/responses/errors"
+          }
+        },
+        "tags": [
+          "archive"
+        ],
+        "operationId": "precedents",
+        "summary": "The owner's current decisions per topic, with history"
+      }
+    },
     "/api/v1/search": {
       "post": {
         "callbacks": {},
         "deprecated": false,
-        "description": "Find passages across archived context. Hybrid mode fuses keyword (full-text) and\nsemantic (embedding) rankings; keyword mode is best for exact strings (commands,\npaths, error codes). Near-duplicate passages are collapsed into one (its `duplicates`\ncounts the rest) and at most 3 come from one session unless you set `per_session`.\nResults are candidates, not judgments: rerank them yourself.\n",
+        "description": "Find passages across archived context. Hybrid mode fuses keyword (full-text) and\nsemantic (embedding) rankings; keyword mode is best for exact strings (commands,\npaths, error codes). Near-duplicate passages are collapsed into one (its `duplicates`\ncounts the rest) and at most 3 come from one session unless you set `per_session`.\nResults are candidates, not judgments: rerank them yourself. Precedents (decisions the\nowner stated, verified against what he typed) come back with kind `precedent` and a\n`precedent` object saying whether each is the current one for its topic.\n",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -555,7 +617,7 @@
                         "anyOf": [
                           {
                             "items": {
-                              "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message.",
+                              "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message, precedent (decisions the owner stated; [\"precedent\"] for precedents only).",
                               "type": "string"
                             },
                             "type": "array"
@@ -564,7 +626,7 @@
                             "type": "null"
                           }
                         ],
-                        "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message."
+                        "description": "Only these chunk kinds: user, assistant, thinking, tool_call, tool_output, tool_error, summary, subagent_result, extension_message, precedent (decisions the owner stated; [\"precedent\"] for precedents only)."
                       },
                       "limit": {
                         "anyOf": [

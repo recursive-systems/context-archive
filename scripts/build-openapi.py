@@ -10,7 +10,8 @@ The document's server is $CONTEXT_ARCHIVE_URL (the committed copy keeps the
 placeholder; build with your real URL before importing it into your gateway).
 
 Normalizes for tool gateways: stable operation ids and one tag (tools become
-`archive.search`, `archive.readDocument`, `archive.chunkContext`, `archive.status`),
+`archive.search`, `archive.find`, `archive.readDocument`, `archive.chunkContext`,
+`archive.status`, `archive.precedents`),
 a bearer-token security scheme described as a Context Archive read token, and no
 `unmasked` option (admin-only; a gateway never holds an admin token).
 """
@@ -25,6 +26,7 @@ OPERATIONS = {
     ("get", "/api/v1/documents/{document}"): ("readDocument", "Read a document (Pi session) in file order"),
     ("get", "/api/v1/chunks/{chunk_id}/context"): ("chunkContext", "Records before and after a search hit"),
     ("get", "/api/v1/status"): ("status", "Freshness, backlog and embedding coverage"),
+    ("get", "/api/v1/precedents"): ("precedents", "The owner's current decisions per topic, with history"),
 }
 
 spec = json.load(sys.stdin)
@@ -36,7 +38,10 @@ spec["info"] = {
         "paginated passages, judged relevant by a judge model when one is configured. Only "
         "masked agents-scope text is sent to the judge; failed or excluded judgments remain "
         "explicitly unjudged. "
-        "Search returns ranked candidates with provenance. Text is masked for secrets."
+        "Search returns ranked candidates with provenance. Precedents are decisions the owner "
+        "stated, verified against what he typed: they appear in search and find as kind "
+        "`precedent`, and `precedents` returns the current one per topic with its history. "
+        "Text is masked for secrets."
     ),
 }
 spec["servers"] = [{"url": SERVER}]

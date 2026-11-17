@@ -269,7 +269,8 @@ defmodule ContextArchive.E2E.ReadApiTest do
           "/api/v1/search",
           "/api/v1/status",
           "/api/v1/documents/{document}",
-          "/api/v1/chunks/{chunk_id}/context"
+          "/api/v1/chunks/{chunk_id}/context",
+          "/api/v1/precedents"
         ] do
       assert Map.has_key?(spec["paths"], path), path
     end
